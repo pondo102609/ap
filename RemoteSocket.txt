@@ -1,0 +1,417 @@
+-- Script Path: game:GetService("ReplicatedStorage").Core.RemoteSocket
+-- Took 0s to decompile.
+-- Executor: Potassium (v2.2.1)
+
+local v1 = game:GetService("ReplicatedStorage")
+local v2 = game:GetService("RunService")
+local u3 = game:GetService("Players")
+local u4 = require(v1.Core.Table)
+local u5 = require(v1.Core.Task)
+require(v1.Core.Maid)
+local u6 = require(v1.Core.Signal)
+local u7 = require(v1.Core.RemoteSignal)
+local u8 = require(v1.Core.Player)
+local u9 = v2:IsServer()
+local u10 = setmetatable({}, u7)
+u10.__index = u10
+local u11 = setmetatable({}, {
+    ["__mode"] = "v"
+})
+local u12 = u7.new("Subscribe", script)
+function register(p13)
+    --[[
+    Upvalues:
+        [1] = u11
+    --]]
+    local v14 = p13.Remote
+    if u11[v14] ~= nil then
+        error((("a RemoteSocket already exists for the given RemoteEvent (at: %*)"):format((v14:GetFullName()))))
+    end
+    u11[v14] = p13
+end
+function unregister(p15)
+    --[[
+    Upvalues:
+        [1] = u11
+    --]]
+    u11[p15.Remote] = nil
+end
+function u10.new(p16, p17, p18) --[[ Line: 86 ]]
+    --[[
+    Upvalues:
+        [1] = u7
+        [2] = u10
+        [3] = u9
+        [4] = u6
+        [5] = u8
+        [6] = u3
+        [7] = u4
+        [8] = u12
+    --]]
+    local v19 = u7.new(p16, p17)
+    local v20 = u10
+    local u21 = setmetatable(v19, v20)
+    if u9 then
+        u21.ClientConnected = u21.Maid:Add(u6.new())
+        u21.ClientDisconnected = u21.Maid:Add(u6.new())
+        if p18 then
+            if typeof(p18) == "table" then
+                p18 = p18.Instance
+            end
+            u21.Whitelist = { p18 }
+        end
+        local u22 = {}
+        u21.Connections = u22
+        local u23 = u21.OnServerEvent
+        function u21.OnRemoteReady(p24) --[[ Line: 110 ]]
+            --[[
+            Upvalues:
+                [1] = u21
+                [2] = u22
+                [3] = u23
+                [4] = u8
+            --]]
+            u21.Maid:Add(p24.OnServerEvent:Connect(function(p25, ...) --[[ Line: 111 ]]
+                --[[
+                Upvalues:
+                    [1] = u22
+                    [2] = u23
+                    [3] = u21
+                    [4] = u8
+                --]]
+                local v26 = u22[p25]
+                if v26 then
+                    u23:Fire(v26, ...)
+                    return
+                elseif u21.Whitelist and not table.find(u21.Whitelist, p25) then
+                    warn((("[RemoteSocket]: Received event from non-whitelisted client (user: %*)"):format(p25.Name)))
+                else
+                    local v27 = u8:getUnsafe(p25)
+                    if not v27 then
+                        error((("no Player entity exists for Instance (user: %*)"):format(p25.Name)))
+                    end
+                    u22[p25] = v27
+                    u21.ClientConnected:Fire(v27)
+                    u23:Fire(v27, ...)
+                end
+            end))
+        end
+        u21.Maid:Add(u3.PlayerRemoving:Connect(function(p28) --[[ Line: 145 ]]
+            --[[
+            Upvalues:
+                [1] = u21
+                [2] = u4
+                [3] = u22
+            --]]
+            if u21.Whitelist then
+                u4.removeValue(u21.Whitelist, p28)
+            end
+            local v29 = u22[p28]
+            if v29 then
+                u22[p28] = nil
+                u21.ClientDisconnected:Fire(v29)
+            end
+        end))
+        register(u21)
+    else
+        u21.Connected = u21.Maid:Add(u6.new())
+        local function v34(u30) --[[ Line: 165 ]]
+            --[[
+            Upvalues:
+                [1] = u21
+                [2] = u6
+                [3] = u12
+            --]]
+            register(u21)
+            u21._SubscribeResponse = u21.Maid:Add(u6.new())
+            task.spawn(function() --[[ Line: 172 ]]
+                --[[
+                Upvalues:
+                    [1] = u21
+                    [2] = u12
+                    [3] = u30
+                --]]
+                local v31 = 0.9375
+                while not u21:IsDestroyed() do
+                    u12:FireServer(u30, true)
+                    local v32, v33 = u21._SubscribeResponse:Wait(60)
+                    if v32 then
+                        u21._SubscribeResponse:Destroy()
+                        u21._SubscribeResponse = nil
+                        u21._Connected = true
+                        u21.Connected:Fire()
+                        return
+                    end
+                    warn((("[RemoteSocket]: Could not connect to RemoteSocket on server: %* (at: %*) (will retry in %*s...)"):format(v33 or "timed out", u30:GetFullName(), (math.round(v31)))))
+                    task.wait(v31)
+                    v31 = v31 * 2
+                end
+            end)
+        end
+        if u21.Remote then
+            v34(u21.Remote)
+        else
+            u21.OnLateRemote = v34
+        end
+        u21._Connected = false
+        local u35 = u21.OnClientEvent
+        function u21.OnRemoteReady(p36) --[[ Line: 204 ]]
+            --[[
+            Upvalues:
+                [1] = u21
+                [2] = u35
+            --]]
+            u21.Maid:Add(p36.OnClientEvent:Connect(function(...) --[[ Line: 207 ]]
+                --[[
+                Upvalues:
+                    [1] = u21
+                    [2] = u35
+                --]]
+                local v37 = u21._Connected
+                assert(v37)
+                u35:Fire(...)
+            end))
+        end
+    end
+    u21.Destroying:Connect(function() --[[ Line: 217 ]]
+        --[[
+        Upvalues:
+            [1] = u21
+            [2] = u9
+            [3] = u12
+        --]]
+        if u21.Remote then
+            unregister(u21)
+        end
+        if u9 then
+            if u21.Remote and u21.Remote.Parent then
+                for v38, _ in u21.Connections do
+                    u21:DisconnectClient(v38)
+                end
+            end
+        elseif u21.Remote and u21.Remote.Parent then
+            u12:FireServer(u21.Remote, false)
+            u21._Connected = false
+        end
+        u21.Whitelist = nil
+        u21.Connections = nil
+    end)
+    return u21
+end
+function u10.AllowClient(p39, p40) --[[ Line: 263 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u4
+    --]]
+    local v41 = u9
+    assert(v41, "must be the server")
+    if not p39.Whitelist then
+        p39.Whitelist = {}
+    end
+    if type(p40) == "table" then
+        p40 = p40.Instance
+    end
+    if p40.Parent then
+        u4.setInsert(p39.Whitelist, p40)
+    end
+end
+function u10.RejectClient(p42, p43) --[[ Line: 289 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u4
+    --]]
+    local v44 = u9
+    assert(v44, "must be the server")
+    if not p42.Whitelist then
+        p42.Whitelist = {}
+    end
+    if p43 then
+        if type(p43) == "table" then
+            p43 = p43.Instance
+        end
+        u4.removeValue(p42.Whitelist, p43)
+        p42:DisconnectClient(p43)
+    end
+end
+function u10.IsClientConnected(p45, p46) --[[ Line: 313 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+    --]]
+    local v47 = u9
+    assert(v47, "must be the server")
+    if type(p46) == "table" then
+        p46 = p46.Instance
+    end
+    return p45.Connections[p46] and true or false
+end
+function u10.GetConnectedClients(p48) --[[ Line: 327 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u4
+    --]]
+    local v49 = u9
+    assert(v49, "must be the server")
+    return u4.values(p48.Connections)
+end
+function u10.DisconnectClient(p50, p51) --[[ Line: 339 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u12
+    --]]
+    local v52 = u9
+    assert(v52, "must be the server")
+    if type(p51) == "table" then
+        p51 = p51.Instance
+    end
+    local v53 = p50.Connections[p51]
+    if v53 then
+        p50.Connections[p51] = nil
+        u12:FireClient(p51, p50.Remote, false)
+        p50.ClientDisconnected:Fire(v53)
+    end
+end
+function u10.FireClient(p54, p55, ...) --[[ Line: 360 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+    --]]
+    local v56 = u9
+    assert(v56, "must be the server")
+    if type(p55) == "table" then
+        p55 = p55.Instance
+    end
+    if p54.Connections[p55] then
+        p54.Remote:FireClient(p55, ...)
+    else
+        error((("%* is not connected to this RemoteSocket (at: %*)"):format(p55.Name, (p54.Remote:GetFullName()))))
+    end
+end
+function u10.FireAllClients(p57, ...) --[[ Line: 380 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+    --]]
+    local v58 = u9
+    assert(v58, "must be the server")
+    for v59, _ in p57.Connections do
+        p57.Remote:FireClient(v59, ...)
+    end
+end
+function u10.FireOtherClients(p60, p61, ...) --[[ Line: 393 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+    --]]
+    local v62 = u9
+    assert(v62, "must be the server")
+    if type(p61) == "table" then
+        p61 = p61.Instance
+    end
+    for v63, _ in p60.Connections do
+        if v63 ~= p61 then
+            p60.Remote:FireClient(v63, ...)
+        end
+    end
+end
+function u10.IsConnected(p64) --[[ Line: 415 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+    --]]
+    local v65 = not u9
+    assert(v65, "must be the client")
+    return p64._Connected
+end
+function u10.WaitForConnect(u66) --[[ Line: 424 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u5
+    --]]
+    local v67 = not u9
+    assert(v67, "must be the client")
+    if u66._Connected then
+        return true
+    end
+    if u66:IsDestroyed() then
+        return false
+    end
+    local u68 = nil
+    local u69 = nil
+    u5.suspend(function(p70) --[[ Line: 436 ]]
+        --[[
+        Upvalues:
+            [1] = u68
+            [2] = u66
+            [3] = u69
+        --]]
+        u68 = u66.Connected:Connect(p70)
+        u69 = u66.Destroying:Connect(p70)
+    end)
+    u68:Disconnect()
+    u69:Disconnect()
+    return u66._Connected
+end
+task.spawn(function() --[[ Line: 446 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u12
+        [3] = u11
+    --]]
+    if u9 then
+        u12.OnServerEvent:Connect(function(p71, p72, p73) --[[ Line: 452 ]]
+            --[[
+            Upvalues:
+                [1] = u11
+                [2] = u12
+            --]]
+            local v74 = u11[p72]
+            if v74 then
+                if p73 then
+                    if v74.Connections[p71.Instance] then
+                        u12:FireClient(p71, p72, true)
+                        return
+                    elseif v74.Whitelist and not table.find(v74.Whitelist, p71.Instance) then
+                        u12:FireClient(p71, p72, false, "forbidden")
+                    else
+                        u12:FireClient(p71, p72, true)
+                        v74.Connections[p71.Instance] = p71
+                        v74.ClientConnected:Fire(p71)
+                    end
+                end
+                if v74.Connections[p71.Instance] then
+                    v74.Connections[p71.Instance] = nil
+                    v74.ClientDisconnected:Fire(p71)
+                    return
+                end
+            else
+                u12:FireClient(p71, p72, false, "socket does not exist")
+            end
+        end)
+    else
+        u12.OnClientEvent:Connect(function(p75, p76, p77) --[[ Line: 497 ]]
+            --[[
+            Upvalues:
+                [1] = u11
+            --]]
+            local v78 = u11[p75]
+            if v78 then
+                if p76 or p77 then
+                    if v78._SubscribeResponse then
+                        v78._SubscribeResponse:Fire(p76, p77)
+                        return
+                    end
+                else
+                    v78._Connected = false
+                end
+            end
+        end)
+    end
+end)
+return table.freeze(u10)

@@ -1,0 +1,302 @@
+-- Script Path: game:GetService("ReplicatedStorage").Core.ReplicationService
+-- Took 0s to decompile.
+-- Executor: Potassium (v2.2.1)
+
+local v1 = game:GetService("ReplicatedStorage")
+local u2 = game:GetService("CollectionService")
+local v3 = game:GetService("RunService")
+local u4 = require(v1.Core.DebugService)
+local u5 = require(v1.Core.Task)
+local u6 = require(v1.Core.Maid)
+local u7 = v3:IsServer()
+local u34 = {
+    ["IsTrackingReplication"] = function(_, p8) --[[ Name: IsTrackingReplication, Line 35 ]]
+        return p8:GetAttribute("_ReplicatedCount_") ~= nil
+    end,
+    ["TrackReplication"] = function(_, u9, p10) --[[ Name: TrackReplication, Line 47 ]]
+        --[[
+        Upvalues:
+            [1] = u7
+            [2] = u6
+        --]]
+        local v11 = u7
+        assert(v11, "must be the server")
+        if not u9:GetAttribute("_ReplicatedCount_") then
+            local u12 = u6.new()
+            if p10 then
+                local v13 = 0
+                for _, v14 in p10 do
+                    if v14:IsDescendantOf(u9) then
+                        v13 = v13 + 1
+                        v14:SetAttribute("_Replicated_", true)
+                    else
+                        error((("given Instance is not a descendant of %*: %*"):format(u9:GetFullName(), (v14:GetFullName()))))
+                    end
+                end
+                u9:SetAttribute("_ReplicatedCount_", v13)
+            else
+                local u15 = 0
+                u12:Add(u9.DescendantAdded:Connect(function(p16) --[[ Line: 77 ]]
+                    --[[
+                    Upvalues:
+                        [1] = u15
+                        [2] = u9
+                    --]]
+                    u15 = u15 + 1
+                    p16:SetAttribute("_Replicated_", true)
+                    u9:SetAttribute("_ReplicatedCount_", u15)
+                end))
+                u12:Add(u9.DescendantRemoving:Connect(function(_) --[[ Line: 82 ]]
+                    --[[
+                    Upvalues:
+                        [1] = u15
+                        [2] = u9
+                    --]]
+                    u15 = u15 - 1
+                    u9:SetAttribute("_ReplicatedCount_", u15)
+                end))
+                local v17 = u15
+                for _, v18 in u9:GetDescendants() do
+                    u15 = v17 + 1
+                    v18:SetAttribute("_Replicated_", true)
+                    v17 = u15
+                end
+                u9:SetAttribute("_ReplicatedCount_", v17)
+            end
+            u12:Add(u9.AncestryChanged:Connect(function(_, p19) --[[ Line: 95 ]]
+                --[[
+                Upvalues:
+                    [1] = u9
+                    [2] = u12
+                --]]
+                if not p19 then
+                    u9:SetAttribute("_ReplicatedCount_", nil)
+                    u12:Destroy()
+                end
+            end))
+            u9:AddTag("TrackReplication")
+        end
+    end,
+    ["WaitForReplication"] = function(_, u20, u21, u22) --[[ Name: WaitForReplication, Line 116 ]]
+        --[[
+        Upvalues:
+            [1] = u7
+            [2] = u6
+            [3] = u5
+            [4] = u4
+        --]]
+        if u7 then
+            return true
+        end
+        local u23 = u20:GetAttribute("_ReplicatedCount_")
+        if not u23 or u23 == 0 then
+            return true
+        end
+        local u24 = 0
+        for _, v25 in u20:GetDescendants() do
+            if v25:GetAttribute("_Replicated_") then
+                u24 = u24 + 1
+            end
+        end
+        if u23 <= u24 then
+            return true
+        end
+        local u26 = coroutine.running()
+        local u27 = nil
+        local u28 = u6.new()
+        local v33 = u5.suspend(function(u29) --[[ Line: 142 ]]
+            --[[
+            Upvalues:
+                [1] = u28
+                [2] = u20
+                [3] = u24
+                [4] = u23
+                [5] = u21
+                [6] = u4
+                [7] = u26
+                [8] = u22
+                [9] = u27
+            --]]
+            u28:Add(u20.AncestryChanged:Connect(function(_, p30) --[[ Line: 143 ]]
+                --[[
+                Upvalues:
+                    [1] = u29
+                --]]
+                if not p30 then
+                    u29(false)
+                end
+            end))
+            u28:Add(u20.DescendantAdded:Connect(function(p31) --[[ Line: 148 ]]
+                --[[
+                Upvalues:
+                    [1] = u24
+                    [2] = u23
+                    [3] = u29
+                --]]
+                if p31:GetAttribute("_Replicated_") then
+                    u24 = u24 + 1
+                    if u23 <= u24 then
+                        u29(true)
+                    end
+                end
+            end))
+            u28:Add(u20.DescendantRemoving:Connect(function(p32) --[[ Line: 156 ]]
+                --[[
+                Upvalues:
+                    [1] = u24
+                --]]
+                if p32:GetAttribute("_Replicated_") then
+                    u24 = u24 - 1
+                end
+            end))
+            u28:Add(u20:GetAttributeChangedSignal("_Replicated_"):Connect(function() --[[ Line: 161 ]]
+                --[[
+                Upvalues:
+                    [1] = u23
+                    [2] = u20
+                    [3] = u24
+                    [4] = u29
+                --]]
+                u23 = u20:GetAttribute("_ReplicatedCount_")
+                if u23 <= u24 then
+                    u29(true)
+                end
+            end))
+            if u21 then
+                if u21 > 0 then
+                    u28:Add(task.delay(u21, u29, false))
+                end
+            else
+                u28:Add(task.delay(5, function() --[[ Line: 172 ]]
+                    --[[
+                    Upvalues:
+                        [1] = u4
+                        [2] = u20
+                        [3] = u26
+                    --]]
+                    u4:WarnWithTrace(("Infinite yield possible on \'ReplicationService:WaitForReplication(%*)\'"):format((u20:GetFullName())), 3, u26)
+                end))
+            end
+            if u22 then
+                u22:Add(u29)
+                u27 = u29
+            end
+        end)
+        u28:Destroy()
+        if u27 and not u22:IsDestroyed() then
+            u22:Remove(u27)
+        end
+        return v33 and true or false
+    end
+}
+if u7 then
+    task.spawn(function() --[[ Line: 192 ]]
+        --[[
+        Upvalues:
+            [1] = u2
+            [2] = u34
+        --]]
+        u2:GetInstanceAddedSignal("TrackReplication"):Connect(function(p35) --[[ Line: 195 ]]
+            --[[
+            Upvalues:
+                [1] = u34
+            --]]
+            u34:TrackReplication(p35)
+        end)
+        for _, v36 in u2:GetTagged("TrackReplication") do
+            u34:TrackReplication(v36)
+        end
+    end)
+end
+return table.freeze(u34)
+
+-- // Function Dumper made by King.Kevin
+-- // Script Path: game:GetService("ReplicatedStorage").Core.ReplicationService
+
+--[[
+Function Dump: TrackReplication
+
+Function Upvalues: TrackReplication
+        1 [boolean] = false
+        2 [table]:
+        2 [table] table: 0xb07463bdf9a92cc1
+                1 [function] = GetContents
+                2 [function] = IsDestroyed
+                3 [function] = Remove
+                4 [function] = Destroy
+                5 [function] = Clean
+                6 [function] = Add
+                7 [function] = Contains
+                8 [table] (Recursive table detected)
+                9 [function] = new
+
+Function Constants: TrackReplication
+        1 [string] = must be the server
+        2 [string] = assert
+        4 [string] = _ReplicatedCount_
+        5 [string] = GetAttribute
+        6 [string] = new
+        7 [string] = IsDescendantOf
+        8 [number] = 1
+        9 [string] = _Replicated_
+        10 [string] = SetAttribute
+        11 [string] = error
+        13 [string] = given Instance is not a descendant of %*: %*
+        14 [string] = GetFullName
+        15 [string] = format
+        16 [string] = DescendantAdded
+        17 [string] = Connect
+        18 [string] = Add
+        19 [string] = DescendantRemoving
+        20 [string] = GetDescendants
+        21 [string] = AncestryChanged
+        22 [string] = TrackReplication
+        23 [string] = AddTag
+
+====================================================================================================
+
+Function Dump: IsTrackingReplication
+
+Function Upvalues: IsTrackingReplication
+
+Function Constants: IsTrackingReplication
+        1 [string] = _ReplicatedCount_
+        2 [string] = GetAttribute
+
+====================================================================================================
+
+Function Dump: WaitForReplication
+
+Function Upvalues: WaitForReplication
+        1 [boolean] = false
+        2 [table] (Recursive table detected)
+        3 [table]:
+        3 [table] table: 0x36f34f7977353ea1
+                1 [function] = timeout
+                2 [function] = deferOnce
+                3 [function] = deferredOnce
+                4 [function] = suspend
+                5 [function] = tpcall
+                6 [function] = await
+        4 [table]:
+        4 [table] table: 0x76bf3056d39eea81
+                1 [function] = WarnWithTrace
+                2 [function] = ShowPoint
+
+Function Constants: WaitForReplication
+        1 [string] = _ReplicatedCount_
+        2 [string] = GetAttribute
+        3 [number] = 0
+        4 [string] = GetDescendants
+        5 [string] = _Replicated_
+        6 [number] = 1
+        7 [string] = coroutine
+        8 [string] = running
+        10 [string] = new
+        11 [string] = suspend
+        12 [string] = Destroy
+        13 [string] = IsDestroyed
+        14 [string] = Remove
+
+====================================================================================================
+]]

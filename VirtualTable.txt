@@ -1,0 +1,308 @@
+-- Script Path: game:GetService("ReplicatedStorage").Core.RemoteTable.VirtualTable
+-- Took 0s to decompile.
+-- Executor: Potassium (v2.2.1)
+
+local v1 = game:GetService("ReplicatedStorage")
+local v2 = game:GetService("RunService")
+local u3 = require(v1.Core.Table)
+local u4 = require(v1.Core.Signal)
+local u5 = v2:IsServer()
+local u6 = u5 and 1 or -1
+local u7 = {}
+u7.__index = u7
+function u7.new(p8, p9) --[[ Line: 39 ]]
+    --[[
+    Upvalues:
+        [1] = u7
+        [2] = u4
+    --]]
+    local v10 = u7
+    local v11 = setmetatable({}, v10)
+    v11.Main = p8
+    v11.Map = {}
+    v11.Changed = {}
+    v11.DataKey = p9
+    v11.Added = u4.new()
+    v11.Removed = u4.new()
+    return v11
+end
+function u7.Get(p12, p13) --[[ Line: 63 ]]
+    local v14 = p12.Map[p13]
+    if v14 == nil then
+        return nil
+    else
+        return p12.Main.Data[v14]
+    end
+end
+function u7.GetAll(p15) --[[ Line: 81 ]]
+    local v16 = table.clone(p15.Map)
+    for v17, v18 in p15.Map do
+        v16[v17] = p15.Main.Data[v18]
+    end
+    return v16
+end
+function u7.GetChangedSignal(p19, p20) --[[ Line: 97 ]]
+    --[[
+    Upvalues:
+        [1] = u4
+    --]]
+    local v21 = not table.isfrozen(p19)
+    assert(v21, "table is destroyed (read-only)")
+    local v22 = p19.Changed[p20]
+    if v22 == nil then
+        v22 = u4.new()
+        p19.Changed[p20] = v22
+    end
+    return v22
+end
+function u7.Set(p23, p24, p25) --[[ Line: 122 ]]
+    --[[
+    Upvalues:
+        [1] = u6
+        [2] = u5
+        [3] = u7
+    --]]
+    local v26 = not table.isfrozen(p23)
+    assert(v26, "table is destroyed (read-only)")
+    local v27 = p23.Map[p24]
+    local v28 = p23.Main
+    local v29
+    if v27 == nil then
+        v29 = nil
+    else
+        v29 = v28.Data[v27]
+    end
+    if v29 ~= p25 then
+        if type(v29) == "table" then
+            v29:Destroy()
+        end
+        if p25 == nil then
+            v28.Data[v27] = nil
+            v28.Keys[v27] = nil
+            v28.Parents[v27] = nil
+            p23.Map[p24] = nil
+            if u5 then
+                flagDataChanged(v28, v27)
+                if v28.DataNew[v27] then
+                    v28.DataNew[v27] = nil
+                    v28.DataChanged[v27] = nil
+                end
+            end
+            local v30 = p23.Changed[p24]
+            if v30 then
+                v30:Fire()
+            end
+            p23.Removed:Fire(p24)
+        else
+            if v27 == nil then
+                v28.LastKey = v28.LastKey + u6
+                local v31 = v28.LastKey
+                v27 = tostring(v31)
+                v28.Keys[v27] = p24
+                v28.Parents[v27] = p23.DataKey
+                if u5 then
+                    v28.DataNew[v27] = true
+                end
+                p23.Map[p24] = v27
+            end
+            local v32
+            if type(p25) == "table" then
+                if getmetatable(p25) ~= nil then
+                    error("cannot store tables with a metatable")
+                end
+                v32 = u7.new(v28, v27)
+                for v33, v34 in p25 do
+                    v32:Set(v33, v34)
+                end
+            else
+                v32 = p25
+            end
+            v28.Data[v27] = v32
+            if u5 then
+                flagDataChanged(v28, v27)
+            end
+            local v35 = p23.Changed[p24]
+            if v35 then
+                v35:Fire()
+            end
+            if v29 == nil then
+                p23.Added:Fire(p24)
+                return
+            end
+        end
+    end
+end
+function flagDataChanged(u36, p37)
+    u36.DataChanged[p37] = true
+    if not u36.Deferred then
+        u36.Deferred = true
+        task.defer(function() --[[ Line: 226 ]]
+            --[[
+            Upvalues:
+                [1] = u36
+            --]]
+            if not table.isfrozen(u36) then
+                u36.Deferred = false
+                u36.Changed:Fire()
+            end
+        end)
+    end
+end
+function u7.Destroy(p38) --[[ Line: 239 ]]
+    --[[
+    Upvalues:
+        [1] = u5
+    --]]
+    if not table.isfrozen(p38) then
+        local v39 = p38.Main
+        local v40 = {}
+        for _, v41 in p38.Map do
+            local v42 = v39.Data[v41]
+            if type(v42) == "table" then
+                v42:Destroy()
+            end
+            v40[v41] = v42
+            v39.Data[v41] = nil
+            v39.Keys[v41] = nil
+            v39.Parents[v41] = nil
+            if u5 then
+                flagDataChanged(v39, v41)
+            end
+        end
+        p38.Main = {
+            ["Data"] = v40
+        }
+        for _, v43 in p38.Changed do
+            v43:Destroy()
+        end
+        p38.Changed = nil
+        p38.Added:Destroy()
+        p38.Added = nil
+        p38.Removed:Destroy()
+        p38.Removed = nil
+        table.freeze(p38)
+    end
+end
+function u7.GetRaw(p44, p45) --[[ Line: 292 ]]
+    if p45 == nil then
+        local v46 = p44:GetAll()
+        for v47, v48 in v46 do
+            if type(v48) == "table" then
+                v46[v47] = v48:GetRaw()
+            end
+        end
+        return v46
+    else
+        local v49 = p44:Get(p45)
+        if type(v49) == "table" then
+            v49 = v49:GetRaw()
+        end
+        return v49
+    end
+end
+function u7.IsEmpty(p50) --[[ Line: 322 ]]
+    --[[
+    Upvalues:
+        [1] = u3
+    --]]
+    return u3.isEmpty(p50.Map)
+end
+function u7.SetAll(p51, p52) --[[ Line: 334 ]]
+    for v53, v54 in p52 do
+        p51:Set(v53, v54)
+    end
+end
+function u7.Pairs(p55) --[[ Line: 353 ]]
+    return iterator, p55, nil
+end
+function iterator(p56, p57)
+    local v58, v59 = next(p56.Map, p57)
+    if v58 == nil then
+        return nil
+    else
+        return v58, p56.Main.Data[v59]
+    end
+end
+function u7.RawPairs(p60) --[[ Line: 382 ]]
+    return iteratorRaw, p60, nil
+end
+function iteratorRaw(p61, p62)
+    local v63, v64 = next(p61.Map, p62)
+    if v63 == nil then
+        return nil
+    end
+    local v65 = p61.Main.Data[v64]
+    if type(v65) == "table" then
+        v65 = v65:GetRaw()
+    end
+    return v63, v65
+end
+function u7.Find(p66, p67) --[[ Line: 406 ]]
+    for v68, v69 in p66.Map do
+        if p66.Main.Data[v69] == p67 then
+            return v68
+        end
+    end
+    return nil
+end
+function u7.Clear(p70) --[[ Line: 423 ]]
+    for v71, _ in p70.Map do
+        p70:Set(v71, nil)
+    end
+end
+function u7.Increment(p72, p73, p74) --[[ Line: 435 ]]
+    local v75 = p72:Get(p73)
+    if type(v75) ~= "number" then
+        if v75 == nil then
+            error((("\"%*\" does not exist"):format(p73)))
+        else
+            error((("\"%*\" is not a number (type: %*)"):format(p73, (typeof(v75)))))
+        end
+    end
+    local v76 = v75 + (p74 or 1)
+    p72:Set(p73, v76)
+    return v76
+end
+function u7.GetLength(p77) --[[ Line: 457 ]]
+    return #p77.Map
+end
+function u7.Insert(p78, p79, p80) --[[ Line: 472 ]]
+    local v81 = #p78.Map
+    if p80 then
+        for v82 = v81, p80, -1 do
+            p78:Set(v82 + 1, p78:GetRaw(v82))
+        end
+    else
+        p80 = v81 + 1
+    end
+    p78:Set(p80, p79)
+    return p80
+end
+function u7.Remove(p83, p84) --[[ Line: 499 ]]
+    if type(p84) ~= "number" then
+        error((("could not remove value at index: index is not a number (given: %*)"):format((typeof(p84)))))
+    end
+    if p84 < 1 then
+        return nil
+    end
+    local v85 = #p83.Map
+    if v85 < p84 then
+        return nil
+    end
+    local v86 = p83:GetRaw(p84)
+    for v87 = p84, v85 - 1 do
+        p83:Set(v87, p83:GetRaw(v87 + 1))
+    end
+    p83:Set(v85, nil)
+    return v86
+end
+function u7.RemoveValue(p88, p89) --[[ Line: 537 ]]
+    for v90, v91 in ipairs(p88.Map) do
+        if p88.Main.Data[v91] == p89 then
+            p88:Remove(v90)
+            return v90
+        end
+    end
+    return nil
+end
+return table.freeze(u7)

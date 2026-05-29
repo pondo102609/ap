@@ -1,0 +1,303 @@
+-- Script Path: game:GetService("ReplicatedStorage").Core.RemoteTable
+-- Took 0s to decompile.
+-- Executor: Potassium (v2.2.1)
+
+local v1 = game:GetService("ReplicatedStorage")
+local v2 = game:GetService("RunService")
+game:GetService("Players")
+local u3 = require(v1.Core.Table)
+local u4 = require(v1.Core.Object)
+require(v1.Core.Maid)
+local u5 = require(v1.Core.Signal)
+require(v1.Core.Player)
+local u6 = require(v1.Core.RemoteSocket)
+local v7 = require(v1.Core.ILoadable)
+local u8 = require(script.VirtualTable)
+local u9 = v2:IsServer()
+local u10 = setmetatable({}, u4)
+u10.__index = u10
+u10:implement(v7)
+function u10.new(p11, p12, p13) --[[ Line: 88 ]]
+    --[[
+    Upvalues:
+        [1] = u4
+        [2] = u10
+        [3] = u8
+        [4] = u6
+        [5] = u5
+        [6] = u9
+    --]]
+    if not p12 then
+        local _ = script
+    end
+    local v14 = u4.new()
+    local v15 = u10
+    local u16 = setmetatable(v14, v15):instantiate()
+    u16.Name = p11
+    u16.LastKey = 0
+    u16.Deferred = false
+    u16.Data = {}
+    u16.Keys = {}
+    u16.Parents = {}
+    u16.Root = u16.Maid:Add(u8.new(u16))
+    u16.Socket = u16.Maid:Add(u6.new(p11, p12, p13))
+    u16.Synced = u16.Maid:Add(u5.new())
+    u16.Changed = u16.Maid:Add(u5.new())
+    u16.Added = u16.Root.Added
+    u16.Removed = u16.Root.Removed
+    if u9 then
+        u16.DataNew = {}
+        u16.DataChanged = {}
+        u16.Socket.ClientConnected:Connect(function(p17) --[[ Line: 120 ]]
+            --[[
+            Upvalues:
+                [1] = u16
+            --]]
+            u16.FlushIgnore = p17
+            u16:Flush()
+            u16.FlushIgnore = nil
+            local v18 = table.clone(u16.Data)
+            for v19, v20 in u16.Data do
+                if type(v20) == "table" then
+                    v18[v19] = nil
+                end
+            end
+            u16.Socket:FireClient(p17, v18, nil, u16.Keys, u16.Parents)
+        end)
+        u16.Changed:Connect(function() --[[ Line: 140 ]]
+            --[[
+            Upvalues:
+                [1] = u16
+            --]]
+            u16:Flush()
+        end)
+        u16:NowLoaded()
+    else
+        u16.Socket.OnClientEvent:Connect(function(...) --[[ Line: 150 ]]
+            --[[
+            Upvalues:
+                [1] = u16
+            --]]
+            applyChanges(u16, ...)
+        end)
+        u16.Synced:Once(function() --[[ Line: 155 ]]
+            --[[
+            Upvalues:
+                [1] = u16
+            --]]
+            u16:NowLoaded()
+        end)
+    end
+    u16.Socket.Destroying:Connect(function() --[[ Line: 162 ]]
+        --[[
+        Upvalues:
+            [1] = u16
+        --]]
+        u16:Destroy()
+    end)
+    return u16
+end
+function u10.Flush(p21) --[[ Line: 178 ]]
+    --[[
+    Upvalues:
+        [1] = u9
+        [2] = u3
+    --]]
+    local v22 = u9
+    assert(v22, "must be the server")
+    debug.profilebegin("RemoteTable:Flush")
+    local v23 = p21.Data
+    local v24 = p21.Keys
+    local v25 = p21.Parents
+    local v26 = nil
+    local v27 = {}
+    for v28, _ in p21.DataChanged do
+        local v29 = v23[v28]
+        if type(v29) ~= "table" then
+            if v29 == nil then
+                v26 = v26 == nil and {} or v26
+                table.insert(v26, v28)
+            else
+                v27[v28] = v29
+            end
+        end
+    end
+    table.clear(p21.DataChanged)
+    local v30 = nil
+    local v31 = nil
+    for v32, _ in p21.DataNew do
+        if v23[v32] ~= nil then
+            local v33 = v24[v32]
+            local v34 = v25[v32]
+            if v30 == nil then
+                v30 = {}
+                v31 = {}
+            end
+            v30[v32] = v33
+            v31[v32] = v34
+        end
+    end
+    table.clear(p21.DataNew)
+    if not u3.isEmpty(v27) or (v26 or v30) then
+        local v35 = p21.FlushIgnore
+        for _, v36 in p21.Socket:GetConnectedClients() do
+            if v36 ~= v35 then
+                p21.Socket:FireClient(v36, v27, v26, v30, v31)
+            end
+        end
+        p21.Synced:Fire()
+    end
+    debug.profileend()
+end
+function applyChanges(u37, p38, p39, p40, p41)
+    --[[
+    Upvalues:
+        [1] = u8
+    --]]
+    debug.profilebegin("RemoteTable:ApplyChanges")
+    local v42 = u37.Data
+    local v43 = u37.Keys
+    local v44 = u37.Parents
+    local v45 = {}
+    local v46 = {}
+    if p40 then
+        for v47, v48 in p40 do
+            local v49 = p41[v47]
+            local v50
+            if v49 == nil then
+                v50 = u37.Root
+            else
+                v50 = v42[v49]
+                if v50 == nil then
+                    v50 = u8.new(u37)
+                    v42[v49] = v50
+                end
+            end
+            v50.Map[v48] = v47
+            local v51 = v50.Added
+            table.insert(v45, v51)
+            table.insert(v46, v48)
+            if p38[v47] == nil and v42[v47] == nil then
+                v42[v47] = u8.new(u37)
+            end
+            v43[v47] = v48
+            v44[v47] = v49
+        end
+    end
+    if p39 then
+        for _, v52 in p39 do
+            local v53 = v42[v52]
+            if type(v53) == "table" then
+                v53:Destroy()
+            end
+            v42[v52] = nil
+            local v54 = v44[v52]
+            local v55
+            if v54 == nil then
+                v55 = u37.Root
+            else
+                v55 = v42[v54]
+            end
+            if v55 ~= nil then
+                local v56 = v43[v52]
+                if v56 == nil then
+                    warn((("[RemoteTable]: Tried to remove a value without a known key (DK: %*)"):format(v52)))
+                else
+                    v55.Map[v56] = nil
+                    local v57 = v55.Removed
+                    table.insert(v45, v57)
+                    table.insert(v46, v56)
+                end
+            end
+            v43[v52] = nil
+            v44[v52] = nil
+        end
+    end
+    for v58, v59 in p38 do
+        v42[v58] = v59
+        local v60 = v44[v58]
+        local v61
+        if v60 == nil then
+            v61 = u37.Root
+        else
+            v61 = v42[v60]
+        end
+        if v61 ~= nil then
+            local v62 = v43[v58]
+            local v63 = v61.Changed[v62]
+            if v63 then
+                table.insert(v45, v63)
+            end
+        end
+    end
+    for v64 = #v45, 1, -1 do
+        local v65 = v45[v64]
+        if v65:HasConnections() then
+            v65:Fire(v46[v64])
+        end
+    end
+    if not u37.Deferred then
+        u37.Deferred = true
+        task.defer(function() --[[ Line: 383 ]]
+            --[[
+            Upvalues:
+                [1] = u37
+            --]]
+            if not table.isfrozen(u37) then
+                u37.Deferred = false
+                u37.Changed:Fire()
+            end
+        end)
+    end
+    u37.Synced:Fire()
+    debug.profileend()
+end
+function u10.Get(p66, p67) --[[ Line: 412 ]]
+    return p66.Root:Get(p67)
+end
+function u10.GetAll(p68) --[[ Line: 423 ]]
+    return p68.Root:GetAll()
+end
+function u10.GetRaw(p69, p70) --[[ Line: 436 ]]
+    return p69.Root:GetRaw(p70)
+end
+function u10.IsEmpty(p71) --[[ Line: 443 ]]
+    return p71.Root:IsEmpty()
+end
+function u10.Pairs(p72) --[[ Line: 457 ]]
+    return p72.Root:Pairs()
+end
+function u10.RawPairs(p73) --[[ Line: 473 ]]
+    return p73.Root:RawPairs()
+end
+function u10.GetChangedSignal(p74, p75) --[[ Line: 482 ]]
+    return p74.Root:GetChangedSignal(p75)
+end
+function u10.Set(p76, p77, p78) --[[ Line: 496 ]]
+    return p76.Root:Set(p77, p78)
+end
+function u10.SetAll(p79, p80) --[[ Line: 505 ]]
+    return p79.Root:SetAll(p80)
+end
+function u10.Clear(p81) --[[ Line: 514 ]]
+    return p81.Root:Clear()
+end
+function u10.Find(p82, p83) --[[ Line: 521 ]]
+    return p82.Root:Find(p83)
+end
+function u10.Increment(p84, p85, p86) --[[ Line: 528 ]]
+    return p84.Root:Increment(p85, p86)
+end
+function u10.GetLength(p87) --[[ Line: 535 ]]
+    return p87.Root:GetLength()
+end
+function u10.Insert(p88, p89, p90) --[[ Line: 547 ]]
+    return p88.Root:Insert(p89, p90)
+end
+function u10.Remove(p91, p92) --[[ Line: 559 ]]
+    return p91.Root:Remove(p92)
+end
+function u10.RemoveValue(p93, p94) --[[ Line: 571 ]]
+    return p93.Root:RemoveValue(p94)
+end
+return table.freeze(u10)
